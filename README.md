@@ -1,66 +1,41 @@
-# AI Enrichment System (`ai-enrichment-system`)
+# CareerScoper AI Enrichment System
 
-The **AI Enrichment System** is the intelligence pipeline for the CareerScope platform. It is a highly decoupled, horizontally scalable, event-driven microservice responsible for extracting structured intelligence from chaotic, unstructured job market data.
+The AI Enrichment System is a **stateless FastAPI microservice** dedicated to natural language processing and semantic enrichment. It abstracts all interactions with Large Language Models (LLMs) away from the main CareerScoper API.
 
-Unlike legacy linear processing pipelines, this system operates on an **Event Choreography** pattern via GCP Pub/Sub. Each AI extraction task is treated as an independent "Capability" that can scale, fail, and retry in complete isolation.
+It is built with **FastAPI**, **`pydantic-ai`**, and deeply integrates with the **Google Gemini API**.
 
----
+## Architecture Overview
+This microservice operates purely as an enrichment pipeline. It does not touch a database directly. It receives unstructured or raw data, processes it through specific AI "Capabilities," and returns structured JSON.
 
-## 🏗️ Architecture & Philosophy
+1. **Capability Registry:** Uses a clean, scalable registry pattern (`core/registry.py`) to easily add new AI skills (e.g., parsing resumes, extracting Tech Trends, analyzing market insights).
+2. **Standardized Provider:** Standardized on `gemini-1.5-flash` for high-throughput, low-cost operations, and `gemini-1.5-pro` for complex deep-reasoning tasks.
+3. **Stateless Execution:** Handles HTTP POST requests containing data payloads, processes them synchronously, and returns the enriched data back to the caller (usually the Django monolith or Data Ingestion System).
 
-1. **Absolute Decoupling:** 
-   This system is entirely decoupled from the core Django monolith (`backend`) and the ingestion engine (`data-ingestion-system`). It exists solely to perform heavy LLM inferences (via `pydantic-ai` and `langchain`) without bloating the core API servers.
-2. **Capability-Driven Design:** 
-   Instead of a monolithic pipeline (`scrape -> parse -> embed`), intelligence is broken down into atomic **Capabilities** (e.g., `skill_extraction`, `classification`, `embedding_generation`).
-3. **Stateless Idempotency:** 
-   Workers hold no state. If a worker dies mid-extraction, Pub/Sub simply redelivers the message to another worker.
-4. **Immutable Enrichment Logs:** 
-   The system never overwrites original job data. All AI inferences are written as append-only records to the `JobEnrichments` table with exact `confidence_score`, `model_name`, and `prompt_version` metadata.
+## Running Locally
 
----
+1. Create a virtual environment: `python -m venv env`
+2. Activate it: `source env/bin/activate`
+3. Install dependencies: `pip install -r requirements.txt`
+4. Set environment variables (requires `GEMINI_API_KEY`):
+   ```bash
+   cp .env.example .env
+   ```
+5. Run the server:
+   ```bash
+   uvicorn main:app --reload --port 8002
+   ```
 
-## 🧠 The Capability Registry
+## Key API Endpoints
 
-All AI logic resides in the `capabilities/` directory. Every worker implements the abstract `Capability` contract defined in `capabilities/base.py`.
-
-### Current Capabilities:
-- **`skill_extraction`**: Reads raw job descriptions and extracts a clean array of required hard and soft skills.
-- **`classification`**: Infers structured metadata such as Seniority Level (Junior, Mid, Senior), Employment Type (Full-Time, Contract), and Salary Ranges.
-- **`normalization`**: (Dependency) Cleans raw HTML and sanitizes text before other capabilities execute.
-- **`embedding_generation`**: Converts the enriched text into dense vector embeddings for downstream use by the Personalization Engine.
-
-### Dynamic Dependency Resolution
-Capabilities explicitly define their dependencies. For example, `skill_extraction` declares `normalization` as a dependency. The Event Router will automatically reject and defer execution if downstream dependencies are not yet marked `COMPLETED` in the database.
-
----
-
-## 🔄 Event Choreography Flow
-
-The system does not use a master orchestrator to route jobs through stages. It uses **Event Choreography**:
-
-1. **Ingestion Trigger:** `data-ingestion-system` publishes a `job_created` event to the `raw-jobs` Pub/Sub topic.
-2. **Execution Request:** The generic `/workers/execute` endpoint receives the push event.
-3. **Registry Lookup:** The endpoint dynamically loads the requested capability (e.g., `normalization`) from the Registry.
-4. **Inference & Persistence:** The capability executes using an LLM and saves the versioned output to the database.
-5. **Choreography Ping:** The router checks the Registry for any downstream capabilities that depend on `normalization` (e.g., `skill_extraction`) and publishes *new* events to the bus to trigger them.
-
-This creates a highly resilient chain reaction where every capability scales independently based on its specific compute requirements.
-
----
-
-## 🚀 Deployment (GCP Cloud Run)
-
-This service is optimized for deployment on Google Cloud Run. 
-
-Because capabilities are dynamically loaded, you can deploy the exact same Docker container to multiple Cloud Run services, simply binding different Pub/Sub push subscriptions to them to create dedicated worker pools:
-- `Service A (Skill Extractors)` ← Listens to `extract-skills` topic.
-- `Service B (Embedders)` ← Listens to `generate-embeddings` topic.
-
-### Local Development
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the FastAPI worker
-uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+- **`POST /sync-execute`**: The primary endpoint. Provide a JSON payload with a `capability` name and the raw `payload` data to execute an AI enrichment task synchronously.
+  
+### Example Request
+```json
+{
+  "capability": "tech_trends",
+  "payload": {
+    "technologies": ["Python", "React", "GCP"],
+    "news_titles": ["Google Cloud releases new AI tools", "Python 3.14 announced"]
+  }
+}
 ```

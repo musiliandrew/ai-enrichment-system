@@ -47,9 +47,17 @@ def init_registry():
     """Import and register all capability modules."""
     from capabilities.skill_extraction import SkillExtractionCapability
     from capabilities.classification import ClassificationCapability
+    from capabilities.status_insight import StatusInsightCapability
+    from capabilities.resume_parser import ResumeParserCapability
+    from capabilities.learning_recommendations import LearningRecommendationsCapability
+    from capabilities.tech_trends import TechTrendsCapability
     
     # We instantiate and register them here
     registry.register(SkillExtractionCapability())
     registry.register(ClassificationCapability())
+    registry.register(StatusInsightCapability())
+    registry.register(ResumeParserCapability())
+    registry.register(LearningRecommendationsCapability())
+    registry.register(TechTrendsCapability())
     
     logger.info(f"Registry initialized with {len(registry.get_all())} capabilities.")
