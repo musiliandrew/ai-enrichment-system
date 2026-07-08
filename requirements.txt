@@ -1,6 +1,6 @@
 fastapi==0.110.0
 uvicorn==0.27.1
-pydantic==2.6.3
+pydantic>=2.10
 psycopg2-binary==2.9.9
 google-cloud-pubsub==2.19.0
 python-json-logger==2.0.7
@@ -9,4 +9,4 @@ tenacity==8.2.3
 # AI / LLM Libraries
 pydantic-ai==0.0.12 # Assuming the user uses this based on the previous traceback
 google-generativeai==0.4.1
-openai==1.14.0
+openai>=1.54.3
