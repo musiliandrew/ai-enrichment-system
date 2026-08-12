@@ -14,5 +14,4 @@ COPY . .
 
 EXPOSE 8002
 
-# Cloud Run timeout optimizations
-CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8002} --timeout-keep-alive 60
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --timeout-keep-alive 60
