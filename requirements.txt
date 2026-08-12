@@ -5,6 +5,8 @@ psycopg2-binary==2.9.9
 google-cloud-pubsub==2.19.0
 python-json-logger==2.0.7
 tenacity==8.2.3
+opentelemetry-api
+opentelemetry-sdk
 
 # AI / LLM Libraries
 google-generativeai>=0.4.1
