@@ -12,6 +12,6 @@ RUN pip install --no-cache-dir --default-timeout=1000 --retries=10 --upgrade pip
 
 COPY . .
 
-EXPOSE 8002
+EXPOSE 8080
 
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --timeout-keep-alive 60
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
